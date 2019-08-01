@@ -1,11 +1,13 @@
-class calibration:
+from inversion import *
+
+class calibrate:
     
     def __init__(self, priorPPF, sigmaY):
 		
         # prior quantile functions - returns N draws of theta from prior
         self.priorPPF = priorPPF
 		
-        # measurement error variance
+        # measurement error standard deviation
         self.sigmaY = sigmaY
 	
     def normal_prior(self, means, sds):
@@ -43,14 +45,16 @@ class calibration:
             if len(logConstraint) == 0:
                 prop = theta[i - 1, :] + np.random.normal(0, beta, len(theta[i - 1, :]))
             else:
-                prop = (logConstraint * (np.exp(np.log(theta[i - 1, :]) + np.random.normal(0, beta, len(theta[i - 1, :]))))) + ((1 - logConstraint) * (theta[i - 1, :] + np.random.normal(0, beta, len(theta[i - 1, :]))))
+                prop = np.zeros(len(logConstraint))
+                prop[np.where(logConstraint == 1)[0].astype(int)] = np.exp(np.log(theta[i - 1, np.where(logConstraint == 1)[0].astype(int)]) + np.random.normal(0, beta, len(theta[i - 1, np.where(logConstraint == 1)[0].astype(int)])))
+                prop[np.where(logConstraint == 0)[0].astype(int)] = theta[i - 1, np.where(logConstraint == 0)[0].astype(int)] + np.random.normal(0, beta, len(theta[i - 1, np.where(logConstraint == 0)[0].astype(int)]))
 			
             alpha = utils.LikelihoodRatio(self.xModel, self.xData,
                                           self.yModel, self.yData,
                                           self.tModel, theta[i - 1, :], prop,
                                           self.sigmaY)
 			
-            accept = np.random.uniform(0, 1) <= np.min([0, ((1 / np.exp(-(T * ((i + 1) / niter)))) * alpha)])
+            accept = np.log(np.random.uniform(0, 1)) <= np.min([0, ((1 / np.exp(-(T * ((i + 1) / niter)))) * alpha)])
 			
             if accept:
                 theta[i, :] = prop
@@ -67,7 +71,7 @@ class calibration:
         self.xModel = xModel
         self.xData = xData
 	
-    def updateTrainingData(self, tModel, ymodel, ydata):
+    def updateTrainingData(self, tModel, yModel, yData):
 	
         # update the data used to train the calibration
         self.tModel = tModel
@@ -89,9 +93,9 @@ class calibration:
 		
         for i in range(np.shape(particles)[0]):
 		    
-            gp = fitGP(self.xModel, self.xData,
-                       self.yModel, self.yData,
-                       self.tModel, particles[i, :], self.sigmaY)
+            gp = utils.fitGP(self.xModel, self.xData,
+                             self.yModel, self.yData,
+                             self.tModel, particles[i, :], self.sigmaY)
 		    
             ml[i] = np.exp(gp.log_marginal_likelihood_value_)
 		
@@ -105,6 +109,7 @@ class calibration:
         if len(logConstraint) == 0:
             self.posteriorSamples = self.posteriorSamples + np.random.normal(0, beta, np.shape(self.posteriorSamples))
         else:
-            self.posteriorSamples = (logConstraint * (np.exp(np.log(self.posteriorSamples) + np.random.normal(0, beta, np.shape(self.posteriorSamples))))) + ((1 - logConstraint) * (self.posteriorSamples + np.random.normal(0, beta, np.shape(self.posteriorSamples))))
+            self.posteriorSamples[:, np.where(logConstraint == 1)[0].astype(int)] = np.exp(np.log(self.posteriorSamples[:, np.where(logConstraint == 1)[0].astype(int)]) + np.random.normal(0, beta, np.shape(self.posteriorSamples[:, np.where(logConstraint == 1)[0].astype(int)])))
+            self.posteriorSamples[:, np.where(logConstraint == 0)[0].astype(int)] = self.posteriorSamples[:, np.where(logConstraint == 0)[0].astype(int)] + np.random.normal(0, beta, np.shape(self.posteriorSamples[:, np.where(logConstraint == 0)[0].astype(int)]))
 			
 			
