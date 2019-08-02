@@ -70,13 +70,18 @@ class calibrate:
         # d being the dimension of each input set
         self.xModel = xModel
         self.xData = xData
-	
+
     def updateTrainingData(self, tModel, yModel, yData):
 	
         # update the data used to train the calibration
         self.tModel = tModel
         self.yModel = yModel
         self.yData = yData
+		
+        # assertions
+        assert(np.shape(self.yModel)[0] == np.shape(self.tModel)[0])
+        assert(np.shape(self.yModel)[1] == len(self.xModel))
+        assert(np.shape(self.yData)[1] == len(self.xData))
 		
     def sequentialUpdate(self, N, beta, logConstraint=None):
 	

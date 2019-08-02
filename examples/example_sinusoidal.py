@@ -11,7 +11,7 @@ def data_generating_process(x, shift, sigmaY):
 
 # params
 true_shift = 0.5
-sigmaY = 0.025
+sigmaY = 0.0125
 
 # coordinates
 ns = 5
@@ -28,7 +28,7 @@ for i in range(n):
     yModel[i, :] = model(xModel, tModel[i])
 
 # data outputs
-m = 30
+m = 20
 yData = np.zeros((m, len(xData)))
 for i in range(m):
     yData[i, :] = data_generating_process(xData, true_shift, sigmaY)
@@ -36,7 +36,7 @@ for i in range(m):
 # define prior for shift and lengthscale
 def priorPPF():
     u = np.random.uniform(0, 1, 2)
-    shift = norm.ppf(u[0], 1.0, 0.5)
+    shift = norm.ppf(u[0], 1, 0.5)
     l = np.exp(norm.ppf(u[1], -2, 0.25))
     return(np.array([shift, l]))
 
@@ -50,9 +50,9 @@ cal.updateCoordinates(xModel, xData)
 cal.updateTrainingData(tModel, yModel, yData)
 
 # mcmc
-niter = 2000
-burn = 1000
-beta = 0.01
+niter = 10000
+burn = 500
+beta = 0.08
 cal.metropolisHastings(niter, beta, logConstraint=np.array([0, 1]), burn=burn)
 
 # posterior
