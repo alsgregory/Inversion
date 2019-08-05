@@ -94,7 +94,7 @@ class calibrate:
             particles = self.__drawFromPrior(N)
 
         # find marginal likelihood of each particle
-        ml = np.zeros(np.shape(particles)[0])
+        self.__ml = np.zeros(np.shape(particles)[0])
 		
         for i in range(np.shape(particles)[0]):
 		    
@@ -102,12 +102,12 @@ class calibrate:
                              self.yModel, self.yData,
                              self.tModel, particles[i, :], self.sigmaY)
 		    
-            ml[i] = np.exp(gp.log_marginal_likelihood_value_)
+            self.__ml[i] = np.exp(gp.log_marginal_likelihood_value_)
 		
         # resample
-        w = ml / np.sum(ml)
+        self.__w = self.__ml / np.sum(self.__ml)
         inds = np.random.choice(np.linspace(0, np.shape(particles)[0] - 1, np.shape(particles)[0]),
-                                N, p = w).astype(int)
+                                N, p = self.__w).astype(int)
         self.posteriorSamples = particles[inds, :]
 		
         # rejuvinate variation in ensemble

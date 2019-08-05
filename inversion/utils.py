@@ -27,7 +27,7 @@ def fitGP(xModel, xData, yModel, yData, tModel, tData, sigmaY):
     # initialize and fit multi output gaussian process
 	
     # multioutput gp noise vector
-    noiseVector = np.concatenate((np.zeros(np.shape(yModel)[0]), np.ones(np.shape(yData)[0]) * (sigmaY ** 2)))
+    noiseVector = np.concatenate((np.zeros(np.shape(yModel)[0] * len(xModel)), np.ones(np.shape(yData)[0] * len(xData)) * (sigmaY ** 2)))
     
     # initialize gps
     gp = GaussianProcessRegressor(kernel=RBF(length_scale = tData[-1]), alpha=noiseVector)
@@ -47,18 +47,28 @@ def mogpTraining(xModel, xData, yModel, yData, tModel, tData):
     # dimensions: xModel (d1), xData (d2), yModel (N x d1), yData (M x d2), tModel (N x e1), tData (e1 + 1)
 	
     # convert tData to M samples - only one 'true' parameter for all observation sets
-    tDatas = np.repeat(np.reshape(tData, ((1, len(tData)))), np.shape(yData)[0], axis=0)
+    tDatas = np.repeat(np.reshape(tData, ((1, len(tData)))), np.shape(yData)[0] * len(xData), axis=0)
 	
     # append exact lengthscale in tModel - last component of tData
-    tModels = np.hstack((tModel, tData[-1] * np.ones((len(tModel), 1))))
+    tModels = np.zeros((0, np.shape(tModel)[1] + 1))
+    yModels = np.zeros(0)
+    yDatas = np.zeros(0)
+    for i in range(np.shape(tModel)[0]):
+        tModels = np.vstack((tModels, np.hstack((np.repeat(np.reshape(tModel[i, :], ((1, np.shape(tModel)[1]))), len(xModel), axis=0),
+                                                 np.repeat(np.reshape(tData[-1], ((1, 1))), len(xModel), axis=0)))))
+        yModels = np.concatenate((yModels, yModel[i, :]))
+    for i in range(np.shape(yData)[0]):
+        yDatas = np.concatenate((yDatas, yData[i, :]))
 	
     # repeat coordinates for all parameter values
-    xModels = np.repeat(np.reshape(xModel, ((1, len(xModel)))), np.shape(yModel)[0], axis=0)
-    xDatas = np.repeat(np.reshape(xData, ((1, len(xData)))), np.shape(yData)[0], axis=0)
+    #xModels = np.repeat(np.reshape(xModel, ((1, len(xModel)))), np.shape(yModel)[0], axis=0)
+    #xDatas = np.repeat(np.reshape(xData, ((1, len(xData)))), np.shape(yData)[0], axis=0)
+    xModels = np.reshape(np.repeat(xModel, np.shape(yModel)[0]), ((len(xModel) * np.shape(yModel)[0], 1)))
+    xDatas = np.reshape(np.repeat(xData, np.shape(yData)[0]), ((len(xData) * np.shape(yData)[0], 1)))
 	
     # construct training data sets
     xTrain = np.hstack((np.vstack((xModels, xDatas)),
                         np.vstack((tModels, tDatas))))
-    yTrain = np.vstack((yModel, yData))
+    yTrain = np.concatenate((yModels, yDatas))
 	
     return(xTrain, yTrain)
