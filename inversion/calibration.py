@@ -2,13 +2,16 @@ from inversion import *
 
 class calibrate:
     
-    def __init__(self, priorPPF, sigmaY):
+    def __init__(self, priorPPF, sigmaY, nugget=0):
 		
         # prior quantile functions - returns N draws of theta from prior
         self.priorPPF = priorPPF
 		
         # measurement error standard deviation
         self.sigmaY = sigmaY
+		
+        # model regularization term
+        self.nugget = nugget
 	
     def normal_prior(self, means, sds):
 	
@@ -52,7 +55,7 @@ class calibrate:
             alpha = utils.LikelihoodRatio(self.xModel, self.xData,
                                           self.yModel, self.yData,
                                           self.tModel, theta[i - 1, :], prop,
-                                          self.sigmaY)
+                                          self.sigmaY, self.nugget)
 			
             accept = np.log(np.random.uniform(0, 1)) <= np.min([0, ((1 / np.exp(-(T * ((i + 1) / niter)))) * alpha)])
 			
@@ -100,7 +103,7 @@ class calibrate:
 		    
             gp = utils.fitGP(self.xModel, self.xData,
                              self.yModel, self.yData,
-                             self.tModel, particles[i, :], self.sigmaY)
+                             self.tModel, particles[i, :], self.sigmaY, self.nugget)
 		    
             self.__ml[i] = np.exp(gp.log_marginal_likelihood_value_)
 		
