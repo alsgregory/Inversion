@@ -2,7 +2,7 @@ from inversion import *
 
 class calibrate:
     
-    def __init__(self, priorPPF, sigmaY, nugget=0):
+    def __init__(self, priorPPF, sigmaY, nugget=0, lambda_e=1):
 		
         # prior quantile functions - returns N draws of theta from prior
         self.priorPPF = priorPPF
@@ -12,6 +12,9 @@ class calibrate:
 		
         # model regularization term
         self.nugget = nugget
+		
+        # model bias scaling
+        self.lambda_e = lambda_e
 	
     def normal_prior(self, means, sds):
 	
@@ -55,9 +58,22 @@ class calibrate:
             alpha = utils.LikelihoodRatio(self.xModel, self.xData,
                                           self.yModel, self.yData,
                                           self.tModel, theta[i - 1, :], prop,
-                                          self.sigmaY, self.nugget)
+                                          self.sigmaY, self.nugget, self.lambda_e)
+            priortheta = np.zeros(len(theta[i - 1, :]))
+            priorprop = np.zeros(len(theta[i - 1, :]))
+            for j in range(len(theta[i - 1, :])):
+                if len(logConstraint) == 0:
+                    priortheta[j] = norm.pdf(theta[i - 1, j], np.mean(self.__drawFromPrior(100000)[:, j]), np.std(self.__drawFromPrior(100000)[:, j]))
+                    priorprop[j] = norm.pdf(prop[j], np.mean(self.__drawFromPrior(100000)[:, j]), np.std(self.__drawFromPrior(100000)[:, j]))
+                else:
+                    if logConstraint[j] == 1:
+                        priortheta[j] = norm.pdf(np.log(theta[i - 1, j]), np.mean(np.log(self.__drawFromPrior(100000)[:, j])), np.std(np.log(self.__drawFromPrior(100000)[:, j])))
+                        priorprop[j] = norm.pdf(np.log(prop[j]), np.mean(np.log(self.__drawFromPrior(100000)[:, j])), np.std(np.log(self.__drawFromPrior(100000)[:, j])))
+                    else:
+                        priortheta[j] = norm.pdf(theta[i - 1, j], np.mean(self.__drawFromPrior(100000)[:, j]), np.std(self.__drawFromPrior(100000)[:, j]))
+                        priorprop[j] = norm.pdf(prop[j], np.mean(self.__drawFromPrior(100000)[:, j]), np.std(self.__drawFromPrior(100000)[:, j]))
 			
-            accept = np.log(np.random.uniform(0, 1)) <= np.min([0, ((1 / np.exp(-(T * ((i + 1) / niter)))) * alpha)])
+            accept = np.log(np.random.uniform(0, 1)) <= np.min([0, ((1 / np.exp(-(T * ((i + 1) / niter)))) * (alpha + (np.sum(np.log(priorprop)) - np.sum(np.log(priortheta)))))])
 			
             if accept:
                 theta[i, :] = prop
@@ -103,7 +119,7 @@ class calibrate:
 		    
             gp = utils.fitGP(self.xModel, self.xData,
                              self.yModel, self.yData,
-                             self.tModel, particles[i, :], self.sigmaY, self.nugget)
+                             self.tModel, particles[i, :], self.sigmaY, self.nugget, self.lambda_e)
 		    
             self.__ml[i] = np.exp(gp.log_marginal_likelihood_value_)
 		

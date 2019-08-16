@@ -13,7 +13,7 @@ def data_generating_process(x, delta_t, omega, sigmaY):
 ts = np.linspace(1, 40, 40)
 true_omega = 5 + (1 * np.sin(ts * math.pi * 2 / 20))
 true_delta_t = 10
-sigmaY = 0.5
+sigmaY = 1.0
 
 # coordinates
 ns = 5
@@ -48,16 +48,17 @@ def priorPPF():
 
 # regularization
 nugget = 0.5
+lambda_e = 1.0
 
 # initialize class
-cal = calibration.calibrate(priorPPF, sigmaY, nugget)
+cal = calibration.calibrate(priorPPF, sigmaY, nugget, lambda_e)
 
 # load coordinates and data
 cal.updateCoordinates(xModel, xData)
 
 # particle filter over data outputs
-nparticles = 750
-beta = 0.25
+nparticles = 400
+beta = 0.5
 posteriors = np.zeros((m, nparticles))
 for i in range(m):
     cal.updateTrainingData(tModel, yModel, np.reshape(yData[i, :], ((1, ns))))
@@ -109,29 +110,29 @@ plot.show()
 ### implement MCMC calibration
 
 # initialize class
-cal = calibration.calibrate(priorPPF, sigmaY)
+calmcmc = calibration.calibrate(priorPPF, sigmaY, nugget)
 
 # load coordinates and data
-cal.updateCoordinates(xModel, xData)
-cal.updateTrainingData(tModel, yModel, yData)
+calmcmc.updateCoordinates(xModel, xData)
+calmcmc.updateTrainingData(tModel, yModel, yData)
 
 # mcmc
-niter = 4000
-burn = 500
-beta = 0.25
-cal.metropolisHastings(niter, beta, logConstraint=np.array([0, 0, 1]), burn=burn)
+niter = 500
+burn = 50
+beta = 0.0
+calmcmc.metropolisHastings(niter, beta, logConstraint=np.array([0, 0, 1]), burn=burn)
 
-posterior = cal.posteriorSamples[-nparticles:, 0]
+posterior = calmcmc.posteriorSamples[-nparticles:, 0]
 
 # posterior
-plot.plot(cal.posteriorSamples[:, 0])
+plot.plot(calmcmc.posteriorSamples[:, 0])
 plot.plot(true_omega[-1] * np.ones(niter - burn + 1), '--')
 plot.xlabel("sample")
 plot.ylabel("omega parameter")
 plot.show()
 
 # posterior
-plot.plot(cal.posteriorSamples[:, 1])
+plot.plot(calmcmc.posteriorSamples[:, 1])
 plot.xlabel("sample")
 plot.ylabel("lengthscale parameter")
 plot.show()
@@ -144,5 +145,5 @@ plot.hist(posteriors[-1, :])
 plot.plot(np.ones(nparticles) * true_omega[-1], np.linspace(0, nparticles, nparticles), '--')
 plot.xlabel("omega")
 plot.ylabel("posterior frequency density")
-plot.ylim([0, np.max(plot.hist(cal.posteriorSamples[-nparticles:, 0])[0])])
+plot.ylim([0, np.max(plot.hist(calmcmc.posteriorSamples[-nparticles:, 0])[0])])
 plot.show()

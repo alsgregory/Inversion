@@ -1,6 +1,7 @@
 from inversion import *
+import inversion.kernels as kernels
 
-def LikelihoodRatio(xModel, xData, yModel, yData, tModel, theta, thetastar, sigmaY, nugget):
+def LikelihoodRatio(xModel, xData, yModel, yData, tModel, theta, thetastar, sigmaY, nugget, lambda_e):
     
     # xmodel and xdata are coordinates
     # ymodel and ydata are outputs
@@ -10,8 +11,8 @@ def LikelihoodRatio(xModel, xData, yModel, yData, tModel, theta, thetastar, sigm
     # T is temperature
     
     # initialize and fit gps
-    gp_theta = fitGP(xModel, xData, yModel, yData, tModel, theta, sigmaY, nugget)
-    gp_thetastar = fitGP(xModel, xData, yModel, yData, tModel, thetastar, sigmaY, nugget)
+    gp_theta = fitGP(xModel, xData, yModel, yData, tModel, theta, sigmaY, nugget, lambda_e)
+    gp_thetastar = fitGP(xModel, xData, yModel, yData, tModel, thetastar, sigmaY, nugget, lambda_e)
 	
     # extract marginal likelihoods
     H_theta = gp_theta.log_marginal_likelihood_value_
@@ -22,7 +23,7 @@ def LikelihoodRatio(xModel, xData, yModel, yData, tModel, theta, thetastar, sigm
     
     return alpha
 
-def fitGP(xModel, xData, yModel, yData, tModel, tData, sigmaY, nugget):
+def fitGP(xModel, xData, yModel, yData, tModel, tData, sigmaY, nugget, lambda_e):
     
     # initialize and fit multi output gaussian process
 	
@@ -30,7 +31,7 @@ def fitGP(xModel, xData, yModel, yData, tModel, tData, sigmaY, nugget):
     noiseVector = np.concatenate((np.ones(np.shape(yModel)[0] * len(xModel)) * nugget, np.ones(np.shape(yData)[0] * len(xData)) * (sigmaY ** 2)))
     
     # initialize gps
-    gp = GaussianProcessRegressor(kernel=RBF(length_scale = tData[-1]), alpha=noiseVector)
+    gp = GaussianProcessRegressor(kernel=kernels.customRBF(length_scale = tData[-1], alpha=lambda_e), alpha=noiseVector)
 	
     # structure training data
     xTraining, yTraining = mogpTraining(xModel, xData, yModel, yData, tModel, tData)
